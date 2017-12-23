@@ -200,18 +200,37 @@ void updateData() {
 
   
 
+  bool cityIsPws = strncmp(WUNDERGROUND_CITY.c_str(), "pws:", 4) == 0;
+  String cityWithoutPws;
+  if(cityIsPws) {
+    cityWithoutPws = String(&WUNDERGROUND_CITY.c_str()[4]);
+  }
+  
   WundergroundConditions *conditionsClient = new WundergroundConditions(IS_METRIC);
-  conditionsClient->updateConditions(&conditions, WUNDERGRROUND_API_KEY, WUNDERGRROUND_LANGUAGE, WUNDERGROUND_COUNTRY, WUNDERGROUND_CITY);
+  if(cityIsPws) {
+    conditionsClient->updateConditionsPWS(&conditions, WUNDERGRROUND_API_KEY, WUNDERGRROUND_LANGUAGE, cityWithoutPws);
+  } else {
+    conditionsClient->updateConditions(&conditions, WUNDERGRROUND_API_KEY, WUNDERGRROUND_LANGUAGE, WUNDERGROUND_COUNTRY, WUNDERGROUND_CITY);
+  }
   delete conditionsClient;
   conditionsClient = nullptr;
 
   WundergroundHourly *hourlyClient = new WundergroundHourly(IS_METRIC, !IS_STYLE_12HR);
-  hourlyClient->updateHourly(hourlies, WUNDERGRROUND_API_KEY, WUNDERGRROUND_LANGUAGE, WUNDERGROUND_COUNTRY, WUNDERGROUND_CITY);
+  if(cityIsPws) {
+    hourlyClient->updateHourlyPWS(hourlies, WUNDERGRROUND_API_KEY, WUNDERGRROUND_LANGUAGE, cityWithoutPws);
+  } else {
+    hourlyClient->updateHourly(hourlies, WUNDERGRROUND_API_KEY, WUNDERGRROUND_LANGUAGE, WUNDERGROUND_COUNTRY, WUNDERGROUND_CITY);
+  }
+  
   delete hourlyClient;
   hourlyClient = nullptr;
 
   WundergroundAstronomy *astronomyClient = new WundergroundAstronomy(IS_STYLE_12HR);
-  astronomyClient->updateAstronomy(&astronomy, WUNDERGRROUND_API_KEY, WUNDERGRROUND_LANGUAGE, WUNDERGROUND_COUNTRY, WUNDERGROUND_CITY);
+  if(cityIsPws) {
+    astronomyClient->updateAstronomyPWS(&astronomy, WUNDERGRROUND_API_KEY, WUNDERGRROUND_LANGUAGE, cityWithoutPws);
+  } else {
+    astronomyClient->updateAstronomy(&astronomy, WUNDERGRROUND_API_KEY, WUNDERGRROUND_LANGUAGE, WUNDERGROUND_COUNTRY, WUNDERGROUND_CITY);
+  }
   delete astronomyClient;
   astronomyClient = nullptr;
   moonAgeImage = String((char) (65 + 26 * (((astronomy.moonAge.toInt()) % 30) / 30.0)));
@@ -292,11 +311,24 @@ void drawCurrentWeather() {
 
 }
 
+unsigned int hourAddWrap(unsigned int hour, unsigned int add) {
+  hour += add;
+  if(hour > 23) hour -= 24;
+
+  return hour;
+}
+
 void drawForecast() {
-  drawForecastDetail(SCREEN_WIDTH / 2 - 20, 15, 3);
-  drawForecastDetail(SCREEN_WIDTH / 2 + 22, 15, 6);
-  drawForecastDetail(SCREEN_WIDTH / 2 + 64, 15, 9);
-  drawForecastDetail(SCREEN_WIDTH / 2 + 106, 15, 12);
+  time_t now = dstAdjusted.time(nullptr);
+  struct tm * timeinfo = localtime (&now);
+  
+  unsigned int curHour = timeinfo->tm_hour;
+  if(timeinfo->tm_min > 29) curHour = hourAddWrap(curHour, 1);
+
+  drawForecastDetail(SCREEN_WIDTH / 2 - 20, 15, hourAddWrap(curHour, 3));
+  drawForecastDetail(SCREEN_WIDTH / 2 + 22, 15, hourAddWrap(curHour, 6));
+  drawForecastDetail(SCREEN_WIDTH / 2 + 64, 15, hourAddWrap(curHour, 9));
+  drawForecastDetail(SCREEN_WIDTH / 2 + 106, 15, hourAddWrap(curHour, 12));
 }
 
 // helper for the forecast columns
